@@ -57,7 +57,6 @@ class PluginImporter:
           (True) or not (False).
         """
 
-
         self.resources_dir = resources_dir
         self.confirm_overwrite_callback = confirm_overwrite_callback
         self.archive = zipfile.ZipFile(zip_filename)

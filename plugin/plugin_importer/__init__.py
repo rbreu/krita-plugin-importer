@@ -23,7 +23,7 @@ class PluginImportertExtension(krita.Extension):
         action.triggered.connect(self.import_plugin)
 
     def confirm_overwrite(self, plugin):
-        reply =  QMessageBox.question(
+        reply = QMessageBox.question(
             self.parent.activeWindow().qwindow(),
             'Overwrite Plugin',
             'The plugin "%s" already exists. Overwrite it?' % (
