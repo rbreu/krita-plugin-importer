@@ -126,7 +126,8 @@ class PluginImporter:
                 root = ElementTree.fromstring(
                     self.archive.read(filename).decode('utf-8'))
             except ElementTree.ParseError as e:
-                raise PluginReadError('Action file: %s' % str(e))
+                raise PluginReadError(
+                    '%s: %s' % (i18n('Action file'), str(e)))
 
             for action in root.findall('./Actions/Action'):
                 if action.get('name') == name:
@@ -138,7 +139,8 @@ class PluginImporter:
             config.read_string(
                 self.archive.read(desktop_filename).decode('utf-8'))
         except ConfigParserError as e:
-            raise PluginReadError('Desktop file: %s' % str(e))
+                raise PluginReadError(
+                    '%s: %s' % (i18n('Desktop file'), str(e)))
         return config
 
     def get_plugin_info(self):
@@ -206,7 +208,7 @@ class PluginImporter:
 
         plugins = self.get_plugin_info()
         if not plugins:
-            raise NoPluginsFoundException('No plugins found in archive')
+            raise NoPluginsFoundException(i18n('No plugins found in archive'))
 
         imported = []
         for plugin in plugins:

@@ -19,32 +19,36 @@ class PluginImportertExtension(krita.Extension):
     def createActions(self, window):
         action = window.createAction(
             'plugin_importer',
-            'Import Python Plugin...',
+            i18n('Import Python Plugin...'),
             'tools/scripts')
         action.triggered.connect(self.import_plugin)
 
     def confirm_overwrite(self, plugin):
         reply = QMessageBox.question(
             self.parent.activeWindow().qwindow(),
-            'Overwrite Plugin',
-            'The plugin "%s" already exists. Overwrite it?' % (
+            i18n('Overwrite Plugin'),
+            i18n('The plugin "%s" already exists. Overwrite it?') % (
                 plugin['ui_name']),
             QMessageBox.Yes | QMessageBox.No)
         return reply == QMessageBox.Yes
 
     def get_success_text(self, plugins):
         txt = [
-            '<p>The following plugins were imported:</p>',
+            '<p>',
+            i18n('The following plugins were imported:'),
+            '</p>',
             '<ul>'
         ]
         for plugin in plugins:
             txt.append('<li>%s</li>' % plugin['ui_name'])
 
         txt.append('</ul>')
-        txt.append(
-            '<p>Please restart Krita and activate the plugins in '
+        txt.append('<p>')
+        txt.append(i18n(
+            'Please restart Krita and activate the plugins in '
             '<em>Settings -> Configure Krita -> '
-            'Python Plugin Manager</em>.</p>')
+            'Python Plugin Manager</em>.'))
+        txt.append('</p>')
         return ('\n').join(txt)
 
     def get_resources_dir(self):
@@ -54,9 +58,9 @@ class PluginImportertExtension(krita.Extension):
     def import_plugin(self):
         zipfile = QFileDialog.getOpenFileName(
             self.parent.activeWindow().qwindow(),
-            'Import Plugin',
+            i18n('Import Plugin'),
             os.path.expanduser('~'),
-            'Zip Archives (*.zip)'
+            '%s (*.zip)' % i18n('Zip Archives'),
         )[0]
 
         try:
@@ -66,16 +70,18 @@ class PluginImportertExtension(krita.Extension):
                 self.confirm_overwrite
             ).import_all()
         except PluginImportError as e:
+            msg = '<p>%s</p><pre>%s</pre>' % (
+                i18n('Error during import:'), str(e))
             QMessageBox.warning(
                 self.parent.activeWindow().qwindow(),
-                'Error',
-                '<p>Error during import:</p><pre>%s</pre>' % str(e))
+                i18n('Error'),
+                msg)
             return
 
         if imported:
             QMessageBox.information(
                 self.parent.activeWindow().qwindow(),
-                'Import successful',
+                i18n('Import successful'),
                 self.get_success_text(imported))
 
 
