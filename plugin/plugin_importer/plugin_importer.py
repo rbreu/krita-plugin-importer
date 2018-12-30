@@ -1,16 +1,31 @@
-from configparser import ConfigParser
+"""This module provides the actual importing logic. See
+`:class:PluginImporter` for more info.
+
+For easy command line testing, call this module like this:
+  > python plugin_importer.py foo.zip /output/path
+"""
+
+from configparser import ConfigParser, Error as ConfigParserError
 import os
 import shutil
+import sys
 from tempfile import TemporaryDirectory
 import zipfile
 from xml.etree import ElementTree
 
 
-# TODO: error handling in reading, parsing and writing files...
-# Unit tests...?
+class PluginImportError(Exception):
+    """Base class for all exceptions of this module."""
+    pass
 
 
-class NoPluginsFoundException(Exception):
+class NoPluginsFoundException(PluginImportError):
+    """No valid plugins can be found in the zip file."""
+    pass
+
+
+class PluginReadError(PluginImportError):
+    """Zip file can't be read or its content can't be parsed."""
     pass
 
 
@@ -22,12 +37,12 @@ class PluginImporter:
     in the zip file. It will find one or more plugins with the
     following strategy:
 
-    1. Find files with the ending ``.desktop`` and read the Python
+    1. Find files with the ending `.desktop` and read the Python
        module name from them
     2. Find directories that correspond to the Python module names
-       and that contain an ``__init__.py`` file
-    3. Find files with ending ``.action`` that have matching
-       ``<Action name=...>`` tags (these files are optional)
+       and that contain an `__init__.py` file
+    3. Find files with ending `.action` that have matching
+       `<Action name=...>` tags (these files are optional)
     4. Extract the desktop- and action-files and the Python module
        directories into the corresponding pykrita and actions folders
 
@@ -59,7 +74,10 @@ class PluginImporter:
 
         self.resources_dir = resources_dir
         self.confirm_overwrite_callback = confirm_overwrite_callback
-        self.archive = zipfile.ZipFile(zip_filename)
+        try:
+            self.archive = zipfile.ZipFile(zip_filename)
+        except(zipfile.BadZipFile, zipfile.LargeZipFile, OSError) as e:
+            raise PluginReadError(str(e))
 
         self.desktop_filenames = []
         self.action_filenames = []
@@ -104,28 +122,40 @@ class PluginImporter:
 
     def get_source_actionfile(self, name):
         for filename in self.action_filenames:
-            root = ElementTree.fromstring(
-                self.archive.read(filename).decode('utf-8'))
+            try:
+                root = ElementTree.fromstring(
+                    self.archive.read(filename).decode('utf-8'))
+            except ElementTree.ParseError as e:
+                raise PluginReadError('Action file: %s' % str(e))
+
             for action in root.findall('./Actions/Action'):
                 if action.get('name') == name:
                     return filename
 
     def read_desktop_config(self, desktop_filename):
         config = ConfigParser()
-        config.read_string(
-            self.archive.read(desktop_filename).decode('utf-8'))
+        try:
+            config.read_string(
+                self.archive.read(desktop_filename).decode('utf-8'))
+        except ConfigParserError as e:
+            raise PluginReadError('Desktop file: %s' % str(e))
         return config
 
     def get_plugin_info(self):
         names = []
         for filename in self.desktop_filenames:
             config = self.read_desktop_config(filename)
-            name = config['Desktop Entry']['X-KDE-Library']
+            try:
+                name = config['Desktop Entry']['X-KDE-Library']
+                ui_name = config['Desktop Entry']['Name']
+            except KeyError as e:
+                raise PluginReadError(
+                    'Desktop file: Key %s not found' % str(e))
             module = self.get_source_module(name)
             if module:
                 names.append({
                     'name': name,
-                    'ui_name': config['Desktop Entry']['Name'],
+                    'ui_name': ui_name,
                     'desktop': filename,
                     'module': module,
                     'action': self.get_source_actionfile(name)
@@ -176,7 +206,7 @@ class PluginImporter:
 
         plugins = self.get_plugin_info()
         if not plugins:
-            raise NoPluginsFoundException()
+            raise NoPluginsFoundException('No plugins found in archive')
 
         imported = []
         for plugin in plugins:
@@ -185,3 +215,14 @@ class PluginImporter:
                 imported.append(plugin)
 
         return imported
+
+
+if __name__ == '__main__':
+    def callback(plugin):
+        print('Overwriting plugin:', plugin['ui_name'])
+        return True
+
+    imported = PluginImporter(
+        sys.argv[1], sys.argv[2], callback).import_all()
+    for plugin in imported:
+        print('Imported plugin:', plugin['ui_name'])

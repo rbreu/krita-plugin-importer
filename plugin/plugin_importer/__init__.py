@@ -1,9 +1,10 @@
 import os
 
 import krita
+from PyQt5.QtCore import QStandardPaths
 from PyQt5.QtWidgets import QFileDialog, QMessageBox
 
-from .plugin_importer import PluginImporter
+from .plugin_importer import PluginImporter, PluginImportError
 
 
 class PluginImportertExtension(krita.Extension):
@@ -46,6 +47,10 @@ class PluginImportertExtension(krita.Extension):
             'Python Plugin Manager</em>.</p>')
         return ('\n').join(txt)
 
+    def get_resources_dir(self):
+        return QStandardPaths.writableLocation(
+            QStandardPaths.AppDataLocation)
+
     def import_plugin(self):
         zipfile = QFileDialog.getOpenFileName(
             self.parent.activeWindow().qwindow(),
@@ -53,11 +58,19 @@ class PluginImportertExtension(krita.Extension):
             os.path.expanduser('~'),
             'Zip Archives (*.zip)'
         )[0]
-        resources_dir = os.path.expanduser('~/.local/share/krita')
 
-        imported = PluginImporter(
-            zipfile, resources_dir, self.confirm_overwrite
-        ).import_all()
+        try:
+            imported = PluginImporter(
+                zipfile,
+                self.get_resources_dir(),
+                self.confirm_overwrite
+            ).import_all()
+        except PluginImportError as e:
+            QMessageBox.warning(
+                self.parent.activeWindow().qwindow(),
+                'Error',
+                '<p>Error during import:</p><pre>%s</pre>' % str(e))
+            return
 
         if imported:
             QMessageBox.information(
