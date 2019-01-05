@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import QFileDialog, QMessageBox
 from .plugin_importer import PluginImporter, PluginImportError
 
 
-class PluginImportertExtension(krita.Extension):
+class PluginImporterExtension(krita.Extension):
 
     def __init__(self, parent):
         super().__init__(parent)
@@ -86,4 +86,4 @@ class PluginImportertExtension(krita.Extension):
 
 
 krita_instance = krita.Krita.instance()
-krita_instance.addExtension(PluginImportertExtension(krita_instance))
+krita_instance.addExtension(PluginImporterExtension(krita_instance))
